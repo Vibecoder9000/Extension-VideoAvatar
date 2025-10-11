@@ -1,3 +1,5 @@
+Not working yet. See https://github.com/SillyTavern/SillyTavern/pull/4646
+
 # Video Avatars Extension for SillyTavern
 
 Bring your characters to life with animated avatars!
@@ -24,23 +26,23 @@ Bring your characters to life with animated avatars!
 ### Uploading Animated Avatars
 
 1. Click the character avatar.
-2. Select a `.webm` or `.mp4` file
+2. Select a `.webm` or `.mp4` file.
 3. The extension will automatically:
    - Generate a PNG thumbnail for the character card
-   - Convert the video to animated WebP (requires Extension-VideoBackgroundLoader)
-   - Save both the PNG and animated WebP to `data/<user>/characters/`
+   - Convert the video to animated WebP (requires [Video Background Loader extension](https://github.com/SillyTavern/Extension-VideoBackgroundLoader))
+   - Save the PNG `data/<user>/characters/`
+   - Save the animated WEBP to `
    - Display the animated avatar when viewing the character
 
 **Note:** Video-to-WebP conversion requires the [Video Background Loader extension](https://github.com/SillyTavern/Extension-VideoBackgroundLoader). Without it, you'll see a notification prompting you to install it.
 
 ## Supported Avatar Types
 
-- **Character Avatars** - `characters/<name>.png`
-- **Group Avatars** - Works with group chat avatars too
+- **Character Avatars**
 
 ## Unsupported Avatar Types
 
-- **Persona Avatars** - `avatars/<name>.png`
+- **Persona Avatars**
 
 Maybe in the future. Open an Issue or DM `Linkpharm` on Discord if you want this.
 
@@ -52,8 +54,6 @@ Maybe in the future. Open an Issue or DM `Linkpharm` on Discord if you want this
 ## Credits
 
 Created by Linkpharm & Jippity
-
-## Changelog
 
 ### v1.0.0 (2025-10-11)
 - Initial release
