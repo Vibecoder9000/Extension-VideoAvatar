@@ -1,0 +1,9 @@
+/* Keep video avatars visually identical to images */
+.st-video-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+  pointer-events: none; /* avoid accidental interactions */
+}

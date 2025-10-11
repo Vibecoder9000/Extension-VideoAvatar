@@ -1,0 +1,12 @@
+{
+  "display_name": "Video Avatars",
+  "loading_order": 100,
+  "js": "index.js",
+  "css": "style.css",
+  "author": "Vibecoder9000",
+  "version": "1.0.0",
+  "homePage": "https://github.com/Vibecoder9000/SillyTavern-VideoAvatar",
+  "auto_update": false,
+  "minimum_client_version": "1.12.0",
+  "dependencies": []
+}
