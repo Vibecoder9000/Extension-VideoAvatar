@@ -33,10 +33,6 @@ Bring your characters to life with animated avatars!
 
 **Note:** Video-to-WebP conversion requires the [Video Background Loader extension](https://github.com/SillyTavern/Extension-VideoBackgroundLoader). Without it, you'll see a notification prompting you to install it.
 
-### How the Extension Finds Animated Files
-
-The extension automatically checks for companion files with the same base name as the PNG avatar in the characters folder (e.g., `Alice.png` → looks for `Alice.webp`, `Alice.webm`, or `Alice.mp4`).
-
 ## Supported Avatar Types
 
 - **Character Avatars** - `characters/<name>.png`
@@ -47,15 +43,6 @@ The extension automatically checks for companion files with the same base name a
 - **Persona Avatars** - `avatars/<name>.png`
 
 Maybe in the future. Open an Issue or DM `Linkpharm` on Discord if you want this.
-
-## Dependencies
-
-### Optional (for video upload conversion)
-- [Extension-VideoBackgroundLoader](https://github.com/SillyTavern/Extension-VideoBackgroundLoader) - Required for converting uploaded videos to animated WebP
-
-The extension works without this dependency, but you won't be able to upload video files directly (you'll need to prepare animated WebP files separately).
-
-- [ezgif.com](https://ezgif.com/video-to-webp)
 
 ## Support
 
