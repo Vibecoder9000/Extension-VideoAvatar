@@ -9,8 +9,8 @@ Bring your characters to life with animated avatars!
 ### Installation
 
 1. Copy this page's URL: `https://github.com/Vibecoder9000/Extension-VideoAvatar`
-2. Click on the Extensions tab: ![Step 2](README/Step 2.png)
-3. Click Install extension: ![Step 3](README/Step 3.png)
+2. Click on the Extensions tab: ![Step 2](README/Step2.png)
+3. Click Install extension: ![Step 3](README/Step3.png)
 4. Paste this page's URL and click `Install just for me`.
 
 ## Usage
