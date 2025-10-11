@@ -50,7 +50,7 @@ Maybe in the future. Open an Issue or DM `Linkpharm` on Discord if you want this
 
 - **Issues:** [GitHub Issues](https://github.com/Vibecoder9000/Extension-VideoAvatar/issues)
 - **Discussions:** [SillyTavern Discord](https://discord.gg/sillytavern)
-- **DM:** ![Account](discord://-/users/643561434457833492) or DM Linkpharm
+- **DM:** URL `discord://-/users/643561434457833492` or DM Linkpharm
 
 Created by Linkpharm & Jippity
 
