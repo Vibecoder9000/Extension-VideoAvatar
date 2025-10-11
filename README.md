@@ -2,16 +2,22 @@
 
 Bring your characters to life with animated avatars!
 
-## Features
-
-- **Video Upload Support** - Upload videos directly, automatically generates PNG thumbnails
+![GIF](README/GIF.gif)
 
 ### Installation
 
 1. Copy this page's URL: `https://github.com/Vibecoder9000/Extension-VideoAvatar`
-2. Click on the Extensions tab: ![Step 2](README/Step2.png)
-3. Click Install extension: ![Step 3](README/Step3.png)
-4. Paste this page's URL and click `Install just for me`.
+2. Click on the Extensions tab:
+
+![Step 2](README/Step2.png)
+
+3. Click Install extension:
+
+![Step 3](README/Step3.png)
+
+4. Paste this page's URL and click `Install just for me`:
+
+![Step 4](README/Step4.png)
 
 ## Usage
 
@@ -50,30 +56,6 @@ Maybe in the future. Open an Issue or DM `Linkpharm` on Discord if you want this
 The extension works without this dependency, but you won't be able to upload video files directly (you'll need to prepare animated WebP files separately).
 
 - [ezgif.com](https://ezgif.com/video-to-webp)
-
-### How It Works
-
-1. **MutationObserver** watches for new avatar images in the DOM
-2. **URL Probing** checks for companion files via HEAD/GET requests
-3. **Smart Replacement**:
-   - WebP: Updates `<img src="...">`
-   - Video: Replaces `<img>` with `<video autoplay loop muted>`
-4. **Styling Preserved** - All classes, sizes, and border-radius maintained
-
-### API Hooks
-
-The extension provides hooks for integration:
-
-```javascript
-// Core can call this on newly created avatars
-await window.resolveAndApplyAvatar(imgElement);
-
-// Extension provides a public API
-window.STVideoAvatars = {
-  rescan: () => Promise<void>,
-  settings: { enabled, order, useHeadProbe }
-};
-```
 
 ## Support
 
