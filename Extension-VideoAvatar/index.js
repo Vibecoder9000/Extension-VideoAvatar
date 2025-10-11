@@ -261,9 +261,6 @@
         mo.observe(document.body, { childList: true, subtree: true });
     }
 
-    // Optional: global hook the core can call if it exists (micro-PR friendly)
-    // Example core call site:
-    // if (globalThis.resolveAndApplyAvatar) await globalThis.resolveAndApplyAvatar(imgEl);
     globalThis.resolveAndApplyAvatar = async function (imgEl) {
         if (imgEl instanceof HTMLImageElement) {
             await upgradeOneImage(imgEl);
@@ -947,7 +944,6 @@ async function patchPopupViaModule() {
     try { installEnsureImageFormatSupportedHook(); } catch (_) { /* noop */ }
     try { schedulePatchReadAvatarLoad(); } catch (_) { /* noop */ }
     try { patchPopupCropperSafety(); } catch (_) { /* noop */ }
-    // debug logging removed for release
     // Try to patch via module import too
     try { patchPopupViaModule(); } catch (_) { /* noop */ }
 })();
