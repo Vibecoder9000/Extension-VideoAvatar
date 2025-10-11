@@ -7,6 +7,6 @@
   "version": "1.0.0",
   "homePage": "https://github.com/Vibecoder9000/SillyTavern-VideoAvatar",
   "auto_update": true,
-  "minimum_client_version": "1.13.4",
+  "minimum_client_version": "1.13.3",
   "dependencies": []
 }
