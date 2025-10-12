@@ -253,12 +253,25 @@
                     // Ensure any newly added avatar inputs accept videos
                     widenAvatarInputs(node);
                 }
+            } else if (m.type === 'attributes' && m.attributeName === 'src') {
+                // Watch for src attribute changes on avatar images
+                const target = m.target;
+                if (target instanceof HTMLImageElement && target.id === 'avatar_load_preview') {
+                    const src = target.getAttribute('src') || '';
+                    // Only re-upgrade if src was changed back to a static image (PNG/JPG)
+                    // Skip if it's already a webp or video or user images path
+                    if (src && /\.(png|jpe?g|gif)$/i.test(src) && !/\.webp$/i.test(src)) {
+                        // Character edit form avatar changed - clear upgrade flag and re-upgrade
+                        delete target.dataset.stVideoAvatar;
+                        upgradeOneImage(target);
+                    }
+                }
             }
         }
     });
 
     function startObservers() {
-        mo.observe(document.body, { childList: true, subtree: true });
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
     }
 
     globalThis.resolveAndApplyAvatar = async function (imgEl) {
@@ -320,6 +333,19 @@
                 const et = event_types[name];
                 if (et) eventSource.on(et, () => upgradeAvatarsIn(document));
             });
+            // Listen for character editor opened to upgrade the avatar preview
+            if (event_types.CHARACTER_EDITOR_OPENED) {
+                eventSource.on(event_types.CHARACTER_EDITOR_OPENED, () => {
+                    // Give ST a moment to set the src, then upgrade
+                    setTimeout(() => {
+                        const preview = document.getElementById('avatar_load_preview');
+                        if (preview instanceof HTMLImageElement) {
+                            delete preview.dataset.stVideoAvatar;
+                            upgradeOneImage(preview);
+                        }
+                    }, 50);
+                });
+            }
             // Also do a small delayed pass in case APP_READY was already fired before we attached
             setTimeout(() => { try { onAppReady(); } catch(_) {} }, 300);
             return true;
