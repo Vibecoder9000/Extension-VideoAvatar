@@ -1,5 +1,6 @@
 indev, may or may not work. currently bugfixing. Requirement: newest staging 13.4
 
+---
 
 # Video Avatars Extension for SillyTavern
 
@@ -7,24 +8,26 @@ Bring your characters to life with animated avatars!
 
 ![GIF](README/GIF.gif)
 
+---
+
 ### Installation
 
 1. Copy this page's URL: `https://github.com/Vibecoder9000/Extension-VideoAvatar`
 2. Click on the `Extensions` tab:
 
-# ![Step 2](README/Step2.png)
+![Step 2](README/Step2.png)
 
 3. Click `Install extension`:
 
-# ![Step 3](README/Step3.png)
+![Step 3](README/Step3.png)
 
 4. Paste this page's URL and click `Install just for me`:
 
-# ![Step 4](README/Step4.png)
+![Step 4](README/Step4.png)
+
+---
 
 ## Usage
-
-### Uploading Animated Avatars
 
 1. Click the character avatar.
 2. Upload a `.webm` or `.mp4` file.
@@ -37,6 +40,8 @@ Bring your characters to life with animated avatars!
 
 Video upload requires the [Video Background Loader extension](https://github.com/SillyTavern/Extension-VideoBackgroundLoader). Without it, you'll see a notification prompting you to install it.
 
+---
+
 ## Supported Avatar Types
 
 - **Character Avatars**
@@ -47,6 +52,8 @@ Video upload requires the [Video Background Loader extension](https://github.com
 
 Maybe in the future. Contact support if you want this.
 
+---
+
 ## Support
 
 - **Issues:** [GitHub Issues](https://github.com/Vibecoder9000/Extension-VideoAvatar/issues)
@@ -55,5 +62,5 @@ Maybe in the future. Contact support if you want this.
 
 Created by Linkpharm & Jippity
 
-### v1.0.0 (2025-10-11)
+### v1.0.0 (2025-10-12)
 - Initial release
