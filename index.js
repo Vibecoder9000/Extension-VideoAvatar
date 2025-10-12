@@ -592,7 +592,7 @@ async function convertAvatarVideoIfNeeded(input) {
         /** @type {any} */
         const w = window;
         const toast = w['toastr'];
-        const openExtMenu = ctx().openThirdPartyExtensionMenu;
+        const openExtMenu = SillyTavern.getContext().openThirdPartyExtensionMenu;
         const converter = w['convertVideoToAnimatedWebp'];
         // Always ensure the avatar input is a PNG still (so server never receives a video)
         const baseName = getCharacterBaseNameSafe();

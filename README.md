@@ -1,4 +1,24 @@
-Not working yet. See https://github.com/SillyTavern/SillyTavern/pull/4646
+indev, may or may not work. currently bugfixing
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Video Avatars Extension for SillyTavern
 
