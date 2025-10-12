@@ -1,4 +1,4 @@
-indev, may or may not work. currently bugfixing. Requirement: newest staging 13.4
+indev, may or may not work. currently bugfixing. Requirement: newest staging 13.4, post https://github.com/SillyTavern/SillyTavern/commit/b7f93b3594c9a6bb2d3c09597ad3c160ede46b1a
 
 ---
 
@@ -42,15 +42,15 @@ Video upload requires the [Video Background Loader extension](https://github.com
 
 ---
 
-## Supported Avatar Types
+## Supported Avatar Types:
 
-- **Character Avatars**
+**Character Avatars**
 
-## Unsupported Avatar Types
+## Unsupported Avatar Types:
 
-- **Persona Avatars**
+**Persona Avatars**
 
-Maybe in the future. Contact support if you want this.
+ - I'm not planning to add persona avatars because I don't personally need/want them. Contact me if you would like them.
 
 ---
 
@@ -58,9 +58,9 @@ Maybe in the future. Contact support if you want this.
 
 - **Issues:** [GitHub Issues](https://github.com/Vibecoder9000/Extension-VideoAvatar/issues)
 - **Discussions:** [SillyTavern Discord](https://discord.gg/sillytavern)
-- **DM:** URL: `discord://-/users/643561434457833492` or Linkpharm
+- **DM:** URL `discord://-/users/643561434457833492` or Linkpharm
 
-Created by Linkpharm & Jippity
+Created by Linkpharm & Various LLMs
 
 ### v1.0.0 (2025-10-12)
 - Initial release
