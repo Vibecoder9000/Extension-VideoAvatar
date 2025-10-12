@@ -647,6 +647,9 @@ async function convertAvatarVideoIfNeeded(input) {
         const convertedFile = new File([new Uint8Array(convertedBuffer)], convertedName, { type: 'image/webp' });
     // conversion complete
 
+        // Remove "Please wait" toast
+        try { if (tMsg && typeof tMsg.remove === 'function') tMsg.remove(); } catch(_) {}
+
         // Update preview to a data URL of the still image (thumbnail)
         try {
             const dataUrl = thumbUrl;
@@ -676,16 +679,28 @@ async function convertAvatarVideoIfNeeded(input) {
                 if (baseName) {
                     await uploadCompanionWebp(baseName, convertedFile);
                     // uploaded animated webp companion to user images
+                    // Notify user of success (persistent toast with click-to-reload)
+                    try {
+                        if (toast && toast.success) {
+                            toast.success('Upload finished. Click to reload the page and apply the animated avatar.', 'Animated avatar uploaded', {
+                                timeOut: 0,
+                                extendedTimeOut: 0,
+                                closeButton: true,
+                                tapToDismiss: false,
+                                onclick: () => { try { location.reload(); } catch (_) { /* ignore */ } },
+                            });
+                        }
+                    } catch(_) {}
                 } else {
                     // baseName not found; skipping webp companion upload (create flow?)
                 }
             } catch (e) {
                 console.warn('failed to upload webp companion', e);
+                // Inform the user the upload failed
+                try { const t = window['toastr']; if (t && t.error) t.error('Failed to upload animated avatar.'); } catch(_) {}
             }
             // character avatar handled; PNG still will be saved on Save click
         }
-
-        try { if (tMsg && typeof tMsg.remove === 'function') tMsg.remove(); } catch(_) {}
     } catch (e) {
         console.warn('conversion error', e);
         try { const toast = window['toastr']; if (toast && toast['error']) toast['error']('Error converting video to animated webp'); } catch(_) {}
@@ -751,11 +766,10 @@ async function uploadCompanionWebp(baseName, webpFile) {
             },
             body: JSON.stringify(payload),
         });
-        if (!resp.ok) throw new Error('uploadCompanionWebp failed: ' + resp.status);
-        const json = await resp.json().catch(() => ({}));
-        // Notify user that upload finished and advise reload
-        try { const toast = window['toastr']; if (toast && toast['success']) toast['success']('Upload finished, please reload.'); } catch(_) {}
-        return json;
+    if (!resp.ok) throw new Error('uploadCompanionWebp failed: ' + resp.status);
+    const json = await resp.json().catch(() => ({}));
+    // Return result to caller; caller will handle user-facing notification
+    return json;
     } catch (err) {
         // Show error toast on failure
         try { const toast = window['toastr']; if (toast && toast['error']) toast['error']('Failed to upload animated avatar.'); } catch(_) {}
