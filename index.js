@@ -609,10 +609,16 @@ async function convertAvatarVideoIfNeeded(input) {
         if (typeof converter !== 'function') {
             // converter missing
             if (toast && toast.warning) {
-                toast.warning('Click here to install the Video Background Loader extension', 'Video avatar uploads require a downloadable add-on', {
+                const toastMsg = toast.warning('Click here to install the Video Background Loader extension', 'Video avatar uploads require a downloadable add-on', {
                     timeOut: 0,
                     extendedTimeOut: 0,
-                    onclick: () => { try { openExtMenu && openExtMenu('https://github.com/SillyTavern/Extension-VideoBackgroundLoader'); } catch(_){} },
+                    onclick: function() {
+                        try {
+                            if (typeof openExtMenu === 'function') {
+                                openExtMenu('https://github.com/SillyTavern/Extension-VideoBackgroundLoader');
+                            }
+                        } catch(_){}
+                    },
                 });
             }
             // Without converter, we stop here: PNG will be saved; no animation companion.
