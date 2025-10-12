@@ -11,22 +11,22 @@ Bring your characters to life with animated avatars!
 1. Copy this page's URL: `https://github.com/Vibecoder9000/Extension-VideoAvatar`
 2. Click on the `Extensions` tab:
 
- - ![Step 2](README/Step2.png)
+# ![Step 2](README/Step2.png)
 
 3. Click `Install extension`:
 
- - ![Step 3](README/Step3.png)
+# ![Step 3](README/Step3.png)
 
 4. Paste this page's URL and click `Install just for me`:
 
- - ![Step 4](README/Step4.png)
+# ![Step 4](README/Step4.png)
 
 ## Usage
 
 ### Uploading Animated Avatars
 
 1. Click the character avatar.
-2. Select a `.webm` or `.mp4` file.
+2. Upload a `.webm` or `.mp4` file.
 3. The extension will automatically:
    - Generate a PNG thumbnail for the character card
    - Convert the video to animated WebP
