@@ -592,7 +592,6 @@ async function convertAvatarVideoIfNeeded(input) {
         /** @type {any} */
         const w = window;
         const toast = w['toastr'];
-        const openExtMenu = SillyTavern.getContext().openThirdPartyExtensionMenu;
         const converter = w['convertVideoToAnimatedWebp'];
         // Always ensure the avatar input is a PNG still (so server never receives a video)
         const baseName = getCharacterBaseNameSafe();
@@ -609,15 +608,26 @@ async function convertAvatarVideoIfNeeded(input) {
         if (typeof converter !== 'function') {
             // converter missing
             if (toast && toast.warning) {
-                const toastMsg = toast.warning('Click here to install the Video Background Loader extension', 'Video avatar uploads require a downloadable add-on', {
+                toast.warning('Click here to install the Video Background Loader extension', 'Video avatar uploads require a downloadable add-on', {
                     timeOut: 0,
                     extendedTimeOut: 0,
-                    onclick: function() {
+                    onclick: () => {
                         try {
-                            if (typeof openExtMenu === 'function') {
-                                openExtMenu('https://github.com/SillyTavern/Extension-VideoBackgroundLoader');
+                            const context = SillyTavern.getContext();
+                            // openThirdPartyExtensionMenu should be available in the context
+                            if (context && typeof context.openThirdPartyExtensionMenu === 'function') {
+                                context.openThirdPartyExtensionMenu('https://github.com/SillyTavern/Extension-VideoBackgroundLoader');
+                            } else {
+                                // Fallback: try to open the URL directly
+                                window.open('https://github.com/SillyTavern/Extension-VideoBackgroundLoader', '_blank');
                             }
-                        } catch(_){}
+                        } catch(err) {
+                            console.error('[Video Avatars] Failed to open extension menu:', err);
+                            // Last resort fallback
+                            try {
+                                window.open('https://github.com/SillyTavern/Extension-VideoBackgroundLoader', '_blank');
+                            } catch(e) {}
+                        }
                     },
                 });
             }
