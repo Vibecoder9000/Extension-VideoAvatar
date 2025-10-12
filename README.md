@@ -11,15 +11,15 @@ Bring your characters to life with animated avatars!
 1. Copy this page's URL: `https://github.com/Vibecoder9000/Extension-VideoAvatar`
 2. Click on the `Extensions` tab:
 
-![Step 2](README/Step2.png)
+ - ![Step 2](README/Step2.png)
 
 3. Click `Install extension`:
 
-![Step 3](README/Step3.png)
+ - ![Step 3](README/Step3.png)
 
 4. Paste this page's URL and click `Install just for me`:
 
-![Step 4](README/Step4.png)
+ - ![Step 4](README/Step4.png)
 
 ## Usage
 
@@ -29,12 +29,12 @@ Bring your characters to life with animated avatars!
 2. Select a `.webm` or `.mp4` file.
 3. The extension will automatically:
    - Generate a PNG thumbnail for the character card
-   - Convert the video to animated WebP (requires [Video Background Loader extension](https://github.com/SillyTavern/Extension-VideoBackgroundLoader))
+   - Convert the video to animated WebP
    - Save the PNG to `data/<user>/characters/`
-   - Save the animated WEBP to `data/<user>/user/images/<character_name>/<filename>.webp` where `<character_name>` is the character's name and `<filename>.webp` is the PNG filename.
+   - Save the animated WEBP to `data/<user>/user/images/<character_name>/<filename>.webp` where `<character_name>` is the character's name and `<filename>` is the PNG filename.
    - Display the animated avatar when viewing the character
 
-**Note:** Video upload requires the [Video Background Loader extension](https://github.com/SillyTavern/Extension-VideoBackgroundLoader). Without it, you'll see a notification prompting you to install it.
+Video upload requires the [Video Background Loader extension](https://github.com/SillyTavern/Extension-VideoBackgroundLoader). Without it, you'll see a notification prompting you to install it.
 
 ## Supported Avatar Types
 
@@ -44,7 +44,7 @@ Bring your characters to life with animated avatars!
 
 - **Persona Avatars**
 
-Maybe in the future. Open an Issue or DM `Linkpharm` on Discord if you want this.
+Maybe in the future. Contact support if you want this.
 
 ## Support
 
