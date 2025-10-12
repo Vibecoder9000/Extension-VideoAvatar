@@ -1,42 +1,5 @@
-indev, may or may not work. currently bugfixing
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
-|
+indev, may or may not work. currently bugfixing. Requirement: newest staging 13.4
+
 
 # Video Avatars Extension for SillyTavern
 
