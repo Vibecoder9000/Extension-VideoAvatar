@@ -1,7 +1,3 @@
-indev, may or may not work. currently bugfixing. Requirement: newest staging 13.4, post https://github.com/SillyTavern/SillyTavern/commit/b7f93b3594c9a6bb2d3c09597ad3c160ede46b1a
-
----
-
 # Video Avatars Extension for SillyTavern
 
 Bring your characters to life with animated avatars!
@@ -26,6 +22,8 @@ Video upload requires the [Video Background Loader extension](https://github.com
 ---
 
 ### Installation
+
+Requirement: newest staging 13.4, post https://github.com/SillyTavern/SillyTavern/commit/b7f93b3594c9a6bb2d3c09597ad3c160ede46b1a
 
 1. Copy this page's URL: `https://github.com/Vibecoder9000/Extension-VideoAvatar`
 2. Click on the `Extensions` tab:
