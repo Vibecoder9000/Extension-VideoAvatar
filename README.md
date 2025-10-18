@@ -8,12 +8,15 @@ Bring your characters to life with animated avatars!
 
 ## Usage
 
-1. Click the character avatar.
-2. Upload a `.webm` or `.mp4` file.
-3. The extension will automatically:
+1. Obtain and downscale a video to ~500p.
+2. Click the character avatar.
+3. Upload a `.webm` or `.mp4` file.
+4. Reload or click the toast. 
+
+The extension will automatically:
    - Generate a PNG thumbnail for the character card
-   - Convert the video to animated WebP
    - Save the PNG to `data/<user>/characters/`
+   - Convert the video to animated WEBP
    - Save the animated WEBP to `data/<userName>/user/images/<character_name>/<filename>.webp` where `<character_name>` is the character's name and `<filename>` is the PNG filename.
    - Display the animated avatar when viewing the character
 
