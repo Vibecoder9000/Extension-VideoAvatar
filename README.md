@@ -51,7 +51,7 @@ Requirement: SillyTavern `1.13.5`
 
  - Persona Avatars
 
- - I'm not planning to add persona avatars because I don't personally need/want them. Contact me if you would like them.
+I'm not planning to add persona avatars because I don't personally need/want them. Contact me if you would like them.
 
 ---
 
@@ -63,5 +63,5 @@ Requirement: SillyTavern `1.13.5`
 
 Created by Linkpharm & Various LLMs
 
-### v1.0.0 (2025-10-12)
+### v1.0 (2025-10-12)
 - Initial release
