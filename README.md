@@ -8,9 +8,9 @@ Bring your characters to life with animated avatars!
 
 ## Usage
 
-1. Obtain and downscale a video to ~500p.
+1. Obtain and downscale a video to 240-480p.
 2. Click the character avatar.
-3. Upload a `.webm` or `.mp4` file.
+3. Upload the `.webm` or `.mp4` file.
 4. Reload or click the toast. 
 
 The extension will automatically:
