@@ -47,11 +47,7 @@ Requirement: SillyTavern `1.13.5`
 
  - Character Avatars
 
-## Unsupported Avatar Types:
-
  - Persona Avatars
-
-I'm not planning to add persona avatars because I don't personally need/want them. Contact me if you would like them.
 
 ---
 
@@ -65,3 +61,6 @@ Created by Linkpharm & Various LLMs
 
 ### v1.0 (2025-10-12)
 - Initial release
+### v1.1 (2026-5-4)
+- Add Persona support
+- Improve performance significantly by reducing HTML scanning
