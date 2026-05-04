@@ -342,6 +342,28 @@
                     }, 50);
                 });
             }
+            // Listen for persona changes to re-probe avatars
+            if (event_types.PERSONA_CHANGED) {
+                eventSource.on(event_types.PERSONA_CHANGED, () => {
+                    setTimeout(() => upgradeAvatarsIn(document), 50);
+                });
+            }
+            // Listen for persona created to upload cached companion webp
+            if (event_types.PERSONA_CREATED) {
+                eventSource.on(event_types.PERSONA_CREATED, async (data) => {
+                    const pending = window['__va_pending_persona_webp'];
+                    if (pending && data && data.avatarId) {
+                        try {
+                            const avatarId = String(data.avatarId).replace(/\.[^/.]+$/, '');
+                            await uploadPersonaCompanionWebp(avatarId, pending);
+                            showCompanionUploadedToast('Animated persona avatar uploaded');
+                            delete window['__va_pending_persona_webp'];
+                        } catch (e) {
+                            console.warn('failed to upload persona companion on create', e);
+                        }
+                    }
+                });
+            }
             // Also do a small delayed pass in case APP_READY was already fired before we attached
             return true;
         } catch (_) {
@@ -444,19 +466,20 @@ function installAvatarChangeInterceptor() {
             const type = (file.type || '').toLowerCase();
             const fname = (file.name || '').toLowerCase();
             const isVideo = (type.startsWith('video/')) || /\.(webm|mp4|m4v|mov|ogg)$/i.test(fname);
-            if (!isVideo) return;
+            if (!isVideo) {
+                return;
+            }
             // Video selected: generate preview and stop core handler
+            // CRITICAL: stop propagation BEFORE any await to prevent core handler from seeing the video file
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+            e.preventDefault();
             try { /** @type {any} */ (window).__va_last_avatar_file = { name: file.name, type: file.type, size: file.size }; } catch (_) {}
-            // intercepting video selection at change/input; stopping core
             const thumb = await generateVideoThumbnail(file);
             const fallback = (window['default_avatar'] || '/img/ai4.png');
             const imgEl = document.getElementById('avatar_load_preview');
             if (imgEl && thumb) imgEl.setAttribute('src', thumb);
             else if (imgEl) imgEl.setAttribute('src', fallback);
-            // Prevent downstream handlers (including read_avatar_load)
-            e.stopImmediatePropagation();
-            e.stopPropagation();
-            e.preventDefault();
 
             // Kick off conversion to animated webp (if available)
             try {
@@ -566,7 +589,7 @@ async function convertAvatarVideoIfNeeded(input) {
         const isPersona = (id === 'avatar_upload_file') || (input.className || '').split(/\s+/).includes('avatarUpload');
         const isChar = id === 'add_avatar_button';
 
-        if (isGroup || isPersona) {
+        if (isGroup) {
             // Re-dispatch change event so native handlers proceed (group/persona flows don’t use cropper)
             try {
                 input.dataset.vaConverted = '1';
@@ -576,7 +599,55 @@ async function convertAvatarVideoIfNeeded(input) {
                 setTimeout(() => { try { delete input.dataset.vaConverted; } catch(_){} }, 0);
                 // re-dispatched change event for group/persona after conversion
             } catch(_) {}
+        } else if (isPersona) {
+            // Directly upload the PNG thumbnail to /api/avatars/upload
+            // (re-dispatch is unreliable; DataTransfer swaps often fail and video leaks through)
+            const overwriteEl = document.getElementById('avatar_upload_overwrite');
+            const overwriteName = overwriteEl && 'value' in overwriteEl ? String(overwriteEl.value || '') : '';
+            try {
+                // Re-create the PNG file from the already-generated thumbnail
+                // If overwriteName already has an extension, strip it to avoid double .png
+                const pngBaseName = overwriteName ? overwriteName.replace(/\.[^/.]+$/, '') : (file.name.replace(/\.[^/.]+$/, '') || 'avatar');
+                const pngFile = await dataUrlToFile(thumbUrl, pngBaseName + '.png', 'image/png');
+                const formData = new FormData();
+                formData.append('avatar', pngFile);
+                if (overwriteName) formData.append('overwrite_name', overwriteName);
+                const csrfToken = await getCsrfTokenSafe();
+                const resp = await fetch('/api/avatars/upload', {
+                    method: 'POST',
+                    headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+                    body: formData,
+                });
+                if (!resp.ok) throw new Error('avatar upload failed: ' + resp.status);
+                const data = await resp.json().catch(() => ({}));
+
+                if (overwriteName) {
+                    // Overwrite of existing persona: upload companion webp immediately
+                    const avatarId = overwriteName.replace(/\.[^/.]+$/, '');
+                    try { 
+                        await uploadPersonaCompanionWebp(avatarId, convertedFile); 
+                    } catch(e) { 
+                    }
+                    showCompanionUploadedToast('Animated persona avatar uploaded');
+                    // Bust thumbnail cache so the new avatar shows immediately
+                    try {
+                        const bust = '/thumbnail?type=persona&file=' + encodeURIComponent(overwriteName) + '&t=' + Date.now();
+                        await fetch(bust, { cache: 'reload' });
+                    } catch(_) {}
+                } else {
+                    // New persona: cache companion webp for PERSONA_CREATED event
+                    try { window['__va_pending_persona_webp'] = convertedFile; } catch(_) {}
+                    // Trigger ST to refresh the avatar list and prompt persona creation
+                    try {
+                        const { getUserAvatars, delay } = await import(new URL('/scripts/personas.js', location.href).href);
+                        await getUserAvatars();
+                    } catch(_) {}
+                }
+            } catch (e) {
+                console.warn('persona upload failed', e);
+            }
         } else if (isChar) {
+
             // Character avatar: upload animated webp companion to user images folder under the character's base name
             try {
                 if (baseName) {
@@ -638,23 +709,27 @@ async function fileToBase64(file) {
     return dataUrl.split(',')[1];
 }
 
+/**
+ * Get a CSRF token from global or fetch it from server.
+ * Can be used by any upload function.
+ */
+async function getCsrfTokenSafe() {
+    try {
+        // @ts-ignore
+        const t = window['token'];
+        if (typeof t === 'string' && t) return t;
+    } catch(_) {}
+    try {
+        const res = await fetch('/csrf-token', { method: 'GET', cache: 'no-store' });
+        if (res.ok) {
+            const js = await res.json().catch(() => null);
+            if (js && typeof js.token === 'string') return js.token;
+        }
+    } catch(_) {}
+    return '';
+}
+
 async function uploadCompanionWebp(baseName, webpFile) {
-    // Get CSRF token from global if available, otherwise fetch it
-    async function getCsrfTokenSafe() {
-        try {
-            // @ts-ignore
-            const t = window['token'];
-            if (typeof t === 'string' && t) return t;
-        } catch(_) {}
-        try {
-            const res = await fetch('/csrf-token', { method: 'GET', cache: 'no-store' });
-            if (res.ok) {
-                const js = await res.json().catch(() => null);
-                if (js && typeof js.token === 'string') return js.token;
-            }
-        } catch(_) {}
-        return '';
-    }
     const b64 = await fileToBase64(webpFile);
     const payload = {
         image: b64,
@@ -681,6 +756,59 @@ async function uploadCompanionWebp(baseName, webpFile) {
         try { const toast = window['toastr']; if (toast && toast['error']) toast['error']('Failed to upload animated avatar.'); } catch(_) {}
         throw err;
     }
+}
+
+
+/**
+ * Upload companion webp for a persona avatar via the /api/avatars/upload endpoint.
+ * @param {string} avatarId Persona avatar id (filename without extension)
+ * @param {File} webpFile The converted webp file
+ */
+async function uploadPersonaCompanionWebp(avatarId, webpFile) {
+    // Upload companion webp via /api/images/upload to avoid polluting the avatar list
+    // The file will be stored at /user/images/<avatarId>/<avatarId>.webp
+    try {
+        const b64 = await fileToBase64(webpFile);
+        const csrf = await getCsrfTokenSafe();
+        const payload = {
+            image: b64,
+            format: 'webp',
+            ch_name: avatarId,
+            filename: avatarId + '.webp',
+        };
+        const resp = await fetch('/api/images/upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+            },
+            body: JSON.stringify(payload),
+        });
+        if (!resp.ok) throw new Error('uploadPersonaCompanionWebp failed: ' + resp.status);
+        return await resp.json().catch(() => ({}));
+    } catch (err) {
+        console.warn('[Video Avatars] Persona companion upload failed', err);
+        throw err;
+    }
+}
+
+/**
+ * Show a success toast for companion avatar upload.
+ * @param {string} [title='Animated avatar uploaded']
+ */
+function showCompanionUploadedToast(title) {
+    try {
+        const toast = window['toastr'];
+        if (toast && toast.success) {
+            toast.success('Upload finished. Click to reload the page and apply the animated avatar.', title || 'Animated avatar uploaded', {
+                timeOut: 0,
+                extendedTimeOut: 0,
+                closeButton: true,
+                tapToDismiss: false,
+                onclick: () => { try { location.reload(); } catch (_) { /* ignore */ } },
+            });
+        }
+    } catch(_) {}
 }
 
 // Patch popup via ES module import, in case Popup class isn’t exposed on window
