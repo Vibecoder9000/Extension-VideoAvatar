@@ -256,17 +256,29 @@
                     widenAvatarInputs(node);
                 }
             } else if (m.type === 'attributes' && m.attributeName === 'src') {
-                // Watch for src attribute changes on avatar images
+                // Watch for src attribute changes on avatar images.
+                // updateMessageElement (script.js:3411) resets the avatar img src
+                // to the static character thumbnail during a swipe, wiping any
+                // previously-upgraded WebP URL. Clear the upgrade flag so the
+                // next collectAvatarImages scan re-probes and re-upgrades it.
                 const target = m.target;
-                if (target instanceof HTMLImageElement && target.id === 'avatar_load_preview') {
-                    const src = target.getAttribute('src') || '';
+                if (!(target instanceof HTMLImageElement)) continue;
+                // Match any avatar image (chat avatars and editor preview)
+                const src = target.getAttribute('src') || '';
+                if (!src) continue;
+                const isEditorPreview = target.id === 'avatar_load_preview';
+                const isAvatarImg = target.matches(AVATAR_SELECTOR);
+                if (isEditorPreview) {
                     // Only re-upgrade if src was changed back to a static image (PNG/JPG)
                     // Skip if it's already a webp or video or user images path
                     if (src && /\.(png|jpe?g|gif)$/i.test(src) && !/\.webp$/i.test(src)) {
-                        // Character edit form avatar changed - clear upgrade flag and re-upgrade
                         delete target.dataset.stVideoAvatar;
                         upgradeOneImage(target);
                     }
+                } else if (isAvatarImg) {
+                    // Chat avatar src changed (e.g. during a swipe) - clear flag and re-upgrade
+                    delete target.dataset.stVideoAvatar;
+                    upgradeOneImage(target);
                 }
             }
         }
