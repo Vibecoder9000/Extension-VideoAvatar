@@ -329,6 +329,27 @@
                 const et = event_types[name];
                 if (et) eventSource.on(et, () => upgradeAvatarsIn(document));
             });
+            // Listen for MESSAGE_SWIPED to re-upgrade avatars after a swipe.
+            // updateMessageElement (in script.js:3411) resets the avatar img src to the
+            // static character avatar during a swipe, clearing the WebP URL. The extension's
+            // upgrade flag was still set, so subsequent scans skip it. Clear the flag
+            // and re-upgrade the avatar in the swiped message only.
+            if (event_types.MESSAGE_SWIPED) {
+                eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
+                    setTimeout(() => {
+                        const mesEl = document.querySelector(`.mes[mesid="${mesId}"]`);
+                        if (!mesEl) return;
+                        const avatars = mesEl.querySelectorAll(AVATAR_SELECTOR);
+                        avatars.forEach(img => {
+                            if (img instanceof HTMLImageElement) {
+                                delete img.dataset.stVideoAvatar;
+                            }
+                        });
+                        upgradeAvatarsIn(mesEl);
+                    }, 50);
+                });
+            }
+
             // Listen for character editor opened to upgrade the avatar preview
             if (event_types.CHARACTER_EDITOR_OPENED) {
                 eventSource.on(event_types.CHARACTER_EDITOR_OPENED, () => {
