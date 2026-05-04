@@ -37,22 +37,26 @@
     // Cache probed URLs (positive and negative)
     // key: absolute URL string -> boolean (true if exists)
     const probeCache = new Map();
-    // In-memory-only probe cache (no persistent storage)
+    const PROBE_CACHE_MAX = 200;
+    function cacheProbeResult(url, ok) {
+        probeCache.set(url, ok);
+        if (probeCache.size > PROBE_CACHE_MAX) {
+            probeCache.delete(probeCache.keys().next().value);
+        }
+    }
 
     // Utility: try a HEAD or GET to see if a file exists
     async function urlExists(url) {
         try {
-            const now = Date.now();
             const rec = probeCache.get(url);
             if (typeof rec === 'boolean') return rec;
 
             const method = settings.useHeadProbe ? 'HEAD' : 'GET';
-            const res = await fetch(url, { method, cache: 'no-store' });
-            const ok = res.ok;
-            probeCache.set(url, ok);
-            return ok;
+            const res = await fetch(url, { method });
+            cacheProbeResult(url, res.ok);
+            return res.ok;
         } catch (err) {
-            try { probeCache.set(url, false); } catch (_) {}
+            try { cacheProbeResult(url, false); } catch (_) {}
             return false;
         }
     }
@@ -152,16 +156,15 @@
         let foundUrl = null;
         let foundType = null;
 
-        for (const url of candidates) {
+        const probed = await Promise.all(candidates.map(async (url) => {
             const ext = url.split('.').pop().toLowerCase();
-            // probing candidate
             const ok = await urlExists(url);
-            if (ok) {
-                foundUrl = url;
-                foundType = ext; // 'webp' | 'webm' | 'mp4'
-                // candidate ok
-                break;
-            }
+            return ok ? { url, ext } : null;
+        }));
+        const match = probed.find(Boolean);
+        if (match) {
+            foundUrl = match.url;
+            foundType = match.ext;
         }
 
         if (!foundUrl) { return; }
@@ -205,18 +208,17 @@
      * Collect avatar <img> elements under a given root.
      * @param {Document|HTMLElement} root
      */
+    const AVATAR_SELECTOR = [
+        'img[src*="/avatars/"]', // direct persona path
+        'img[src*="/characters/"]', // direct character path
+        'img[src*="/thumbnail"][src*="type=avatar"]',
+        'img[src*="/thumbnail"][src*="type=persona"]',
+    ].join(',');
+
     function collectAvatarImages(root) {
         if (!root) return [];
-        // Heuristics: target avatar images in common ST paths and formats
-        const selector = [
-            'img[src*="/avatars/"]', // direct persona path
-            'img[src*="/characters/"]', // direct character path
-            'img[src*="/thumbnail"][src*="type=avatar"]',
-            'img[src*="/thumbnail"][src*="type=persona"]',
-        ].join(',');
-
         // Filter for typical static image types to avoid reprocessing already swapped items
-        const list = root.querySelectorAll(selector);
+        const list = root.querySelectorAll(AVATAR_SELECTOR);
         const arr = Array.from(list).filter((img) => {
             if (!(img instanceof HTMLImageElement)) return false;
             if (isUpgraded(img)) return false;
@@ -248,17 +250,30 @@
             if (m.type === 'childList') {
                 for (const node of m.addedNodes) {
                     if (!(node instanceof HTMLElement)) continue;
-                    // mutation observer detected new node
+                    // Skip nodes that don't contain any avatar images
+                    if (!node.matches(AVATAR_SELECTOR) && !node.querySelector(AVATAR_SELECTOR)) continue;
                     upgradeAvatarsIn(node);
-                    // Ensure any newly added avatar inputs accept videos
                     widenAvatarInputs(node);
+                }
+            } else if (m.type === 'attributes' && m.attributeName === 'src') {
+                // Watch for src attribute changes on avatar images
+                const target = m.target;
+                if (target instanceof HTMLImageElement && target.id === 'avatar_load_preview') {
+                    const src = target.getAttribute('src') || '';
+                    // Only re-upgrade if src was changed back to a static image (PNG/JPG)
+                    // Skip if it's already a webp or video or user images path
+                    if (src && /\.(png|jpe?g|gif)$/i.test(src) && !/\.webp$/i.test(src)) {
+                        // Character edit form avatar changed - clear upgrade flag and re-upgrade
+                        delete target.dataset.stVideoAvatar;
+                        upgradeOneImage(target);
+                    }
                 }
             }
         }
     });
 
     function startObservers() {
-        mo.observe(document.body, { childList: true, subtree: true });
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
     }
 
     globalThis.resolveAndApplyAvatar = async function (imgEl) {
@@ -293,17 +308,11 @@
 
     async function onAppReady() {
         try {
-            // Ensure inputs accept videos and attach interceptors
             widenAvatarInputs(document);
             installAvatarChangeInterceptor();
-            installReadAvatarLoadHook();
-            installEnsureImageFormatSupportedHook();
-            // Initial upgrade + observers
             await upgradeAvatarsIn(document);
             startObservers();
-            // Patch avatar uploader to gracefully handle video files (no cropper)
-            schedulePatchReadAvatarLoad();
-            patchPopupCropperSafety();
+            patchPopupViaModule();
         } catch (err) {
             console.error('[Video Avatars] init error:', err);
         }
@@ -314,14 +323,20 @@
             const { eventSource, event_types } = ctx();
             if (!eventSource || !event_types || !event_types.APP_READY) throw new Error('context not ready');
             eventSource.on(event_types.APP_READY, onAppReady);
-            // Also subscribe to chat/message events for continuous upgrades
-            const followUps = ['USER_MESSAGE_RENDERED', 'CHARACTER_MESSAGE_RENDERED', 'CHAT_CHANGED'];
-            followUps.forEach((name) => {
-                const et = event_types[name];
-                if (et) eventSource.on(et, () => upgradeAvatarsIn(document));
-            });
+            // Listen for character editor opened to upgrade the avatar preview
+            if (event_types.CHARACTER_EDITOR_OPENED) {
+                eventSource.on(event_types.CHARACTER_EDITOR_OPENED, () => {
+                    // Give ST a moment to set the src, then upgrade
+                    setTimeout(() => {
+                        const preview = document.getElementById('avatar_load_preview');
+                        if (preview instanceof HTMLImageElement) {
+                            delete preview.dataset.stVideoAvatar;
+                            upgradeOneImage(preview);
+                        }
+                    }, 50);
+                });
+            }
             // Also do a small delayed pass in case APP_READY was already fired before we attached
-            setTimeout(() => { try { onAppReady(); } catch(_) {} }, 300);
             return true;
         } catch (_) {
             return false;
@@ -390,123 +405,6 @@ async function generateVideoThumbnail(file) {
 }
 
 /**
- * Monkey-patch core read_avatar_load to bypass cropper for video files and show a preview thumbnail instead.
- */
-function schedulePatchReadAvatarLoad() {
-    try {
-        let attempts = 0; const max = 40; // ~10s
-        const iv = setInterval(() => {
-            attempts++;
-            try {
-                patchReadAvatarLoadOnce();
-                clearInterval(iv);
-            } catch (e) {
-                if (attempts >= max) {
-                    console.warn('[Video Avatars] failed to patch read_avatar_load', e);
-                    clearInterval(iv);
-                }
-            }
-        }, 250);
-    } catch (e) {
-        console.warn('[Video Avatars] failed to schedule read_avatar_load patch', e);
-    }
-}
-
-function patchReadAvatarLoadOnce() {
-    /** @type {any} */
-    const g = window;
-    /** @type {any} */
-    const orig = g.read_avatar_load;
-    if (typeof orig !== 'function' || (orig && orig.__va_patched)) return;
-    /** @type {any} */
-    const wrapped = async function(input) {
-        try {
-            try {
-                const f0 = input && input.files && input.files[0];
-                const meta0 = f0 ? { name: f0.name, type: f0.type, size: f0.size } : null;
-                /** @type {any} */
-                const w = window; w.__va_last_avatar_file = meta0;
-            } catch (_) { /* noop */ }
-            const file = input && input.files && input.files[0];
-            const name = file && typeof file.name === 'string' ? file.name : '';
-            const type = file && typeof file.type === 'string' ? file.type : '';
-            const isVideoByType = !!type && type.startsWith('video/');
-            const isVideoByExt = /\.(webm|mp4|m4v|mov|ogg)$/i.test(name);
-                if (file && (isVideoByType || isVideoByExt)) {
-                // Generate a preview thumbnail and skip crop popup
-                const thumb = await generateVideoThumbnail(file);
-                const fallback = (g.default_avatar || '/img/ai4.png');
-                const imgEl = document.getElementById('avatar_load_preview');
-                if (imgEl && thumb) imgEl.setAttribute('src', thumb);
-                else if (imgEl) imgEl.setAttribute('src', fallback);
-                // Stop here to avoid invoking the cropper on a video file
-                return;
-            }
-        } catch (e) {
-            console.warn('[Video Avatars] read_avatar_load video intercept failed', e);
-        }
-        // Fallback to original behavior for images
-        return await orig.apply(this, arguments);
-    };
-    try { Object.defineProperty(wrapped, '__va_patched', { value: true }); } catch (_) { wrapped.__va_patched = true; }
-    g.read_avatar_load = wrapped;
-}
-
-/**
- * Install a property hook on window.read_avatar_load to wrap any later assignment from core.
- * Ensures video bypass even if core defines/overwrites the function after our extension.
- */
-function installReadAvatarLoadHook() {
-    try {
-        const g = /** @type {any} */ (window);
-        if (g.__va_read_avatar_load_hook) return;
-        let current = g.read_avatar_load;
-        const wrap = (fn) => {
-            if (typeof fn !== 'function') return fn;
-            if (fn.__va_wrapped) return fn;
-            /** @type {any} */
-            const wrapped = async function(input) {
-                try {
-                    try {
-                        const f0 = input && input.files && input.files[0];
-                        const meta0 = f0 ? { name: f0.name, type: f0.type, size: f0.size } : null;
-                        /** @type {any} */
-                        const w = window; w.__va_last_avatar_file = meta0;
-                    } catch (_) { /* noop */ }
-                    const file = input && input.files && input.files[0];
-                    const name = file && typeof file.name === 'string' ? file.name : '';
-                    const type = file && typeof file.type === 'string' ? file.type : '';
-                    const isVideoByType = !!type && type.startsWith('video/');
-                    const isVideoByExt = /\.(webm|mp4|m4v|mov|ogg)$/i.test(name);
-                    if (file && (isVideoByType || isVideoByExt)) {
-                        // intercepted video (hook-wrap)
-                        const thumb = await generateVideoThumbnail(file);
-                        const fallback = (g.default_avatar || '/img/ai4.png');
-                        const imgEl = document.getElementById('avatar_load_preview');
-                        if (imgEl && thumb) imgEl.setAttribute('src', thumb); else if (imgEl) imgEl.setAttribute('src', fallback);
-                        return; // bypass cropper path
-                    }
-                } catch (e) { console.warn('[Video Avatars] hook wrapper failed', e); }
-                return await fn.apply(this, arguments);
-            };
-            try { Object.defineProperty(wrapped, '__va_wrapped', { value: true }); } catch (_) { wrapped.__va_wrapped = true; }
-            return wrapped;
-        };
-        // Initial wrap if already present
-        if (typeof current === 'function') current = wrap(current);
-        Object.defineProperty(g, 'read_avatar_load', {
-            configurable: true,
-            enumerable: false,
-            get() { return current; },
-            set(v) { current = wrap(v); },
-        });
-        g.__va_read_avatar_load_hook = true;
-    } catch (e) {
-        console.warn('[Video Avatars] failed to install read_avatar_load hook', e);
-    }
-}
-
-/**
  * Intercept avatar input change events (capture phase) to handle video files
  * before jQuery handlers invoke read_avatar_load.
  */
@@ -566,7 +464,6 @@ function installAvatarChangeInterceptor() {
     };
     // Use capture to run before jQuery's bubbling handlers
     document.addEventListener('change', handler, true);
-    document.addEventListener('input', handler, true);
 }
 
 /**
@@ -592,7 +489,6 @@ async function convertAvatarVideoIfNeeded(input) {
         /** @type {any} */
         const w = window;
         const toast = w['toastr'];
-        const openExtMenu = w['openThirdPartyExtensionMenu'];
         const converter = w['convertVideoToAnimatedWebp'];
         // Always ensure the avatar input is a PNG still (so server never receives a video)
         const baseName = getCharacterBaseNameSafe();
@@ -612,7 +508,24 @@ async function convertAvatarVideoIfNeeded(input) {
                 toast.warning('Click here to install the Video Background Loader extension', 'Video avatar uploads require a downloadable add-on', {
                     timeOut: 0,
                     extendedTimeOut: 0,
-                    onclick: () => { try { openExtMenu && openExtMenu('https://github.com/SillyTavern/Extension-VideoBackgroundLoader'); } catch(_){} },
+                    onclick: () => {
+                        try {
+                            const context = SillyTavern.getContext();
+                            // openThirdPartyExtensionMenu should be available in the context
+                            if (context && typeof context.openThirdPartyExtensionMenu === 'function') {
+                                context.openThirdPartyExtensionMenu('https://github.com/SillyTavern/Extension-VideoBackgroundLoader');
+                            } else {
+                                // Fallback: try to open the URL directly
+                                window.open('https://github.com/SillyTavern/Extension-VideoBackgroundLoader', '_blank');
+                            }
+                        } catch(err) {
+                            console.error('[Video Avatars] Failed to open extension menu:', err);
+                            // Last resort fallback
+                            try {
+                                window.open('https://github.com/SillyTavern/Extension-VideoBackgroundLoader', '_blank');
+                            } catch(e) {}
+                        }
+                    },
                 });
             }
             // Without converter, we stop here: PNG will be saved; no animation companion.
@@ -630,6 +543,9 @@ async function convertAvatarVideoIfNeeded(input) {
         const convertedName = file.name.replace(/\.[^/.]+$/, '.webp');
         const convertedFile = new File([new Uint8Array(convertedBuffer)], convertedName, { type: 'image/webp' });
     // conversion complete
+
+        // Remove "Please wait" toast
+        try { if (tMsg && typeof tMsg.remove === 'function') tMsg.remove(); } catch(_) {}
 
         // Update preview to a data URL of the still image (thumbnail)
         try {
@@ -660,16 +576,28 @@ async function convertAvatarVideoIfNeeded(input) {
                 if (baseName) {
                     await uploadCompanionWebp(baseName, convertedFile);
                     // uploaded animated webp companion to user images
+                    // Notify user of success (persistent toast with click-to-reload)
+                    try {
+                        if (toast && toast.success) {
+                            toast.success('Upload finished. Click to reload the page and apply the animated avatar.', 'Animated avatar uploaded', {
+                                timeOut: 0,
+                                extendedTimeOut: 0,
+                                closeButton: true,
+                                tapToDismiss: false,
+                                onclick: () => { try { location.reload(); } catch (_) { /* ignore */ } },
+                            });
+                        }
+                    } catch(_) {}
                 } else {
                     // baseName not found; skipping webp companion upload (create flow?)
                 }
             } catch (e) {
                 console.warn('failed to upload webp companion', e);
+                // Inform the user the upload failed
+                try { const t = window['toastr']; if (t && t.error) t.error('Failed to upload animated avatar.'); } catch(_) {}
             }
             // character avatar handled; PNG still will be saved on Save click
         }
-
-        try { if (tMsg && typeof tMsg.remove === 'function') tMsg.remove(); } catch(_) {}
     } catch (e) {
         console.warn('conversion error', e);
         try { const toast = window['toastr']; if (toast && toast['error']) toast['error']('Error converting video to animated webp'); } catch(_) {}
@@ -695,10 +623,13 @@ async function dataUrlToFile(dataUrl, filename, mime) {
 }
 
 async function fileToBase64(file) {
-    const buf = new Uint8Array(await file.arrayBuffer());
-    let binary = '';
-    for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]);
-    return btoa(binary);
+    const reader = new FileReader();
+    const dataUrl = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(/** @type {string} */(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+    });
+    return dataUrl.split(',')[1];
 }
 
 async function uploadCompanionWebp(baseName, webpFile) {
@@ -735,132 +666,14 @@ async function uploadCompanionWebp(baseName, webpFile) {
             },
             body: JSON.stringify(payload),
         });
-        if (!resp.ok) throw new Error('uploadCompanionWebp failed: ' + resp.status);
-        const json = await resp.json().catch(() => ({}));
-        // Notify user that upload finished and advise reload
-        try { const toast = window['toastr']; if (toast && toast['success']) toast['success']('Upload finished, please reload.'); } catch(_) {}
-        return json;
+    if (!resp.ok) throw new Error('uploadCompanionWebp failed: ' + resp.status);
+    const json = await resp.json().catch(() => ({}));
+    // Return result to caller; caller will handle user-facing notification
+    return json;
     } catch (err) {
         // Show error toast on failure
         try { const toast = window['toastr']; if (toast && toast['error']) toast['error']('Failed to upload animated avatar.'); } catch(_) {}
         throw err;
-    }
-}
-
-/**
- * Make the crop popup robust: if cropper is not present (e.g., video placeholder),
- * resolve with the image src instead of calling getCroppedCanvas().
- */
-function patchPopupCropperSafety() {
-    try {
-        /** @type {any} */
-        const w = window;
-        if (w.__va_cropper_patch_started) return; w.__va_cropper_patch_started = true;
-        let attempts = 0; const max = 40; // ~10s at 250ms
-        const iv = setInterval(() => {
-            attempts++;
-            try {
-                /** @type {any} */
-                const PopupCtor = window['Popup'];
-                if (!PopupCtor || !PopupCtor.prototype || PopupCtor.prototype.__va_crop_patched) {
-                    if (PopupCtor && PopupCtor.prototype && PopupCtor.prototype.__va_crop_patched) clearInterval(iv);
-                    if (attempts >= max) clearInterval(iv);
-                    return;
-                }
-                /** @type {any} */
-                const POPUP_TYPE = window['POPUP_TYPE'] || {};
-                /** @type {any} */
-                const POPUP_RESULT = window['POPUP_RESULT'] || {};
-                const origComplete = PopupCtor.prototype.complete;
-                const origShow = PopupCtor.prototype.show;
-                // Bypass CROP popup entirely if last selected file was a video
-                PopupCtor.prototype.show = function() {
-                    try {
-                        const last = w.__va_last_avatar_file || null;
-                        const isVideo = last && (String(last.type || '').startsWith('video/') || /\.(webm|mp4|m4v|mov|ogg)$/i.test(String(last.name || '')));
-                        if (this.type === POPUP_TYPE.CROP && isVideo) {
-                            const previewEl = /** @type {HTMLImageElement} */ (document.getElementById('avatar_load_preview'));
-                            const src = (previewEl && previewEl.src) ? previewEl.src : (this.cropImage || null);
-                            // Mimic original API: return a promise resolving to the image data
-                            return Promise.resolve(src || null);
-                        }
-                    } catch (_) { /* fall through to original show */ }
-                    return origShow.apply(this, arguments);
-                };
-                PopupCtor.prototype.complete = async function(result) {
-                    try {
-                        // Popup.complete called
-                        if (this.type === POPUP_TYPE.CROP && result >= POPUP_RESULT.AFFIRMATIVE) {
-                            const $img = window['jQuery'] ? window['jQuery'](this.cropImage) : null;
-                            try {
-                                const hasData = $img && typeof $img.data === 'function';
-                                const cropper = hasData ? $img.data('cropper') : null;
-                                const needsShim = !cropper || typeof cropper.getCroppedCanvas !== 'function' || !cropper.getCroppedCanvas();
-                                if (needsShim) {
-                                    const imgEl = /** @type {HTMLImageElement} */ (this.cropImage);
-                                    const canvas = document.createElement('canvas');
-                                    const w = (imgEl && (imgEl.naturalWidth || imgEl.width)) || 256;
-                                    const h = (imgEl && (imgEl.naturalHeight || imgEl.height)) || 256;
-                                    canvas.width = w; canvas.height = h;
-                                    const ctx = canvas.getContext('2d');
-                                    if (ctx && imgEl) {
-                                        try { ctx.drawImage(imgEl, 0, 0, w, h); } catch (_) { /* ignore */ }
-                                    }
-                                    // Inject a shim cropper so original logic proceeds without nulls
-                                    if (hasData) $img.data('cropper', { getCroppedCanvas: () => canvas });
-                                }
-                            } catch (_) { /* ignore and let original try */ }
-                        }
-                    } catch (_) { /* fallthrough to original */ }
-                    return origComplete.apply(this, arguments);
-                };
-                try { Object.defineProperty(PopupCtor.prototype, '__va_crop_patched', { value: true }); } catch (_) { PopupCtor.prototype.__va_crop_patched = true; }
-                clearInterval(iv);
-            } catch (e) {
-                if (attempts >= max) {
-                    console.warn('[Video Avatars] failed to patch Popup cropper', e);
-                    clearInterval(iv);
-                }
-            }
-        }, 250);
-    } catch (e) {
-        console.warn('[Video Avatars] failed to schedule Popup cropper patch', e);
-    }
-}
-
-// Add logging to identify who opens the popup (especially CROP)
-function patchPopupLogging() {
-    try {
-        /** @type {any} */
-        const w = window;
-        if (w.__va_popup_logging_started) return; w.__va_popup_logging_started = true;
-        let attempts = 0; const max = 40;
-        const iv = setInterval(() => {
-            attempts++;
-            try {
-                /** @type {any} */
-                const PopupCtor = w['Popup'];
-                if (!PopupCtor || !PopupCtor.prototype || PopupCtor.prototype.__va_show_patched) {
-                    if (PopupCtor && PopupCtor.prototype && PopupCtor.prototype.__va_show_patched) clearInterval(iv);
-                    if (attempts >= max) clearInterval(iv);
-                    return;
-                }
-                const POPUP_TYPE = w['POPUP_TYPE'] || {};
-                const origShow = PopupCtor.prototype.show;
-                PopupCtor.prototype.show = function() {
-                    return origShow.apply(this, arguments);
-                };
-                try { Object.defineProperty(PopupCtor.prototype, '__va_show_patched', { value: true }); } catch (_) { PopupCtor.prototype.__va_show_patched = true; }
-                clearInterval(iv);
-            } catch (e) {
-                if (attempts >= max) {
-                    console.warn('[Video Avatars] failed to patch Popup.show', e);
-                    clearInterval(iv);
-                }
-            }
-        }, 250);
-    } catch (e) {
-        console.warn('[Video Avatars] failed to schedule Popup logging patch', e);
     }
 }
 
@@ -940,65 +753,6 @@ async function patchPopupViaModule() {
         });
     } catch (_) { /* noop */ }
     try { installAvatarChangeInterceptor(); } catch (_) { /* noop */ }
-    try { installReadAvatarLoadHook(); } catch (_) { /* noop */ }
-    try { installEnsureImageFormatSupportedHook(); } catch (_) { /* noop */ }
-    try { schedulePatchReadAvatarLoad(); } catch (_) { /* noop */ }
-    try { patchPopupCropperSafety(); } catch (_) { /* noop */ }
-    // Try to patch via module import too
     try { patchPopupViaModule(); } catch (_) { /* noop */ }
 })();
 
-/**
- * Ensure that when the core tries to normalize the avatar file before submit,
- * any video gets converted into a PNG still. This is a safety net in case
- * input replacement was bypassed earlier.
- */
-function installEnsureImageFormatSupportedHook() {
-    try {
-        /** @type {any} */
-        const g = window;
-        if (g.__va_ensure_image_hook) return;
-        let current = g.ensureImageFormatSupported;
-        const wrap = (fn) => {
-            if (typeof fn !== 'function') return fn;
-            if (fn.__va_wrapped) return fn;
-            /** @type {any} */
-            const wrapped = async function(file) {
-                try {
-                    const isFile = (typeof File !== 'undefined') && (file instanceof File);
-                    const type = isFile ? String(file.type || '').toLowerCase() : '';
-                    const name = isFile ? String(file.name || '').toLowerCase() : '';
-                    const isVideo = isFile && (type.startsWith('video/') || /\.(webm|mp4|m4v|mov|ogg)$/i.test(name));
-                    if (isVideo) {
-                        // ensureImageFormatSupported intercepted a video; converting to PNG still
-                        const thumb = await generateVideoThumbnail(file);
-                        if (thumb) {
-                            const baseName = getCharacterBaseNameSafe() || (name.replace(/\.[^/.]+$/, '') || 'avatar');
-                            const stillPng = await dataUrlToFile(thumb, baseName + '.png', 'image/png');
-                            try {
-                                const imgEl = document.getElementById('avatar_load_preview');
-                                if (imgEl) imgEl.setAttribute('src', thumb);
-                            } catch(_) {}
-                            return stillPng;
-                        }
-                    }
-                } catch (e) { console.warn('[Video Avatars] ensureImageFormatSupported hook failed', e); }
-                // Fallback to original behavior
-                // @ts-ignore
-                return await fn.apply(this, arguments);
-            };
-            try { Object.defineProperty(wrapped, '__va_wrapped', { value: true }); } catch (_) { wrapped.__va_wrapped = true; }
-            return wrapped;
-        };
-        if (typeof current === 'function') current = wrap(current);
-        Object.defineProperty(g, 'ensureImageFormatSupported', {
-            configurable: true,
-            enumerable: false,
-            get() { return current; },
-            set(v) { current = wrap(v); },
-        });
-        g.__va_ensure_image_hook = true;
-    } catch (e) {
-        console.warn('[Video Avatars] failed to install ensureImageFormatSupported hook', e);
-    }
-}
