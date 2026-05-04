@@ -2,7 +2,10 @@
 
 Bring your characters to life with animated avatars!
 
-![GIF](README/GIF.gif)
+<p align="center">
+  <img src="README/chat.gif" alt="chat" width="45%" />
+  <img src="README/list.gif" alt="list" width="45%" />
+</p>
 
 ---
 
