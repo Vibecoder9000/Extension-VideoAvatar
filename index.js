@@ -323,6 +323,12 @@
             const { eventSource, event_types } = ctx();
             if (!eventSource || !event_types || !event_types.APP_READY) throw new Error('context not ready');
             eventSource.on(event_types.APP_READY, onAppReady);
+            // Also subscribe to chat/message events for continuous upgrades
+            const followUps = ['USER_MESSAGE_RENDERED', 'CHARACTER_MESSAGE_RENDERED', 'CHAT_CHANGED'];
+            followUps.forEach((name) => {
+                const et = event_types[name];
+                if (et) eventSource.on(et, () => upgradeAvatarsIn(document));
+            });
             // Listen for character editor opened to upgrade the avatar preview
             if (event_types.CHARACTER_EDITOR_OPENED) {
                 eventSource.on(event_types.CHARACTER_EDITOR_OPENED, () => {
