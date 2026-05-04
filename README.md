@@ -2,10 +2,11 @@
 
 Bring your characters to life with animated avatars!
 
-<p align="center">
-  <img src="README/chat.gif" alt="chat" width="45%" />
-  <img src="README/list.gif" alt="list" width="45%" />
-</p>
+<video src="README/chat.mp4" width="100%" autoplay loop muted playsinline></video>
+
+<br>
+
+<video src="README/list.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ---
 
