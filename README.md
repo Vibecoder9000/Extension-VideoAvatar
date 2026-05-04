@@ -2,11 +2,11 @@
 
 Bring your characters to life with animated avatars!
 
-<video src="README/chat.mp4" width="100%" autoplay loop muted playsinline></video>
+<video src="https://github.com/Vibecoder9000/Extension-VideoAvatar/raw/main/README/chat.mp4" width="100%" autoplay loop muted playsinline></video>
 
-<br>
+<br><br>
 
-<video src="README/list.mp4" width="100%" autoplay loop muted playsinline></video>
+<video src="https://github.com/Vibecoder9000/Extension-VideoAvatar/raw/main/README/list.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ---
 
