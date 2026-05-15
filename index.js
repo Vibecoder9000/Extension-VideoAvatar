@@ -69,8 +69,8 @@
             const origin = u.origin;
             const extsByKey = { webp: '.webp', webm: '.webm', mp4: '.mp4' };
 
-            /** @type {{type: 'avatar'|'persona'|null, fileBase: string|null}} */
-            let info = { type: null, fileBase: null };
+            /** @type {{type: 'avatar'|'persona'|null, fileBase: string|null, directBaseUrl: string|null}} */
+            let info = { type: null, fileBase: null, directBaseUrl: null };
 
             if (/\/thumbnail/i.test(u.pathname)) {
                 const params = u.searchParams;
@@ -78,18 +78,18 @@
                 const fileParam = params.get('file');
                 if ((type === 'avatar' || type === 'persona') && fileParam) {
                     const base = String(fileParam).replace(/\.[a-z0-9]+$/i, '');
-                    info = { type, fileBase: base };
+                    info = { type, fileBase: base, directBaseUrl: null };
                 }
             } else if (/\/characters\//i.test(u.pathname)) {
                 // Direct character path -> avatar thumbnail
                 const fileName = u.pathname.split('/').pop() || '';
                 const base = fileName.replace(/\.[a-z0-9]+$/i, '');
-                info = { type: 'avatar', fileBase: base };
+                info = { type: 'avatar', fileBase: base, directBaseUrl: new URL('.', u).href };
             } else if (/\/avatars\//i.test(u.pathname)) {
                 // Direct persona/avatar path -> persona thumbnail
                 const fileName = u.pathname.split('/').pop() || '';
                 const base = fileName.replace(/\.[a-z0-9]+$/i, '');
-                info = { type: 'persona', fileBase: base };
+                info = { type: 'persona', fileBase: base, directBaseUrl: new URL('.', u).href };
             }
 
             if (!info.type || !info.fileBase) {
@@ -98,16 +98,25 @@
             }
 
             const out = [];
+            const seen = new Set();
+            const pushCandidate = (url) => {
+                if (!url || seen.has(url)) return;
+                seen.add(url);
+                out.push(url);
+            };
             for (const key of settings.order) {
                 const ext = extsByKey[key];
                 if (!ext) continue;
-                const file = `${info.fileBase}${ext}`;
-                const url = `${origin}/thumbnail?type=${info.type}&file=${encodeURIComponent(file)}`;
-                out.push(url);
-                // Also probe direct user images companion path: /user/images/<base>/<base>.<ext>
-                // This is where the extension uploads the animated asset for characters.
-                const direct = `${origin}/user/images/${encodeURIComponent(info.fileBase)}/${encodeURIComponent(info.fileBase)}${ext}`;
-                out.push(direct);
+                // Companion uploads live under /user/images/<base>/<base>.<ext>.
+                // Avoid probing /thumbnail for alternate extensions because that
+                // makes the server try to generate thumbnails for files that
+                // were never uploaded, which produces noisy "original file not found" logs.
+                pushCandidate(`${origin}/user/images/${encodeURIComponent(info.fileBase)}/${encodeURIComponent(info.fileBase)}${ext}`);
+                // If the avatar already came from a direct file path, also allow
+                // sibling companion files next to it.
+                if (info.directBaseUrl) {
+                    pushCandidate(new URL(`${encodeURIComponent(info.fileBase)}${ext}`, info.directBaseUrl).href);
+                }
             }
             // derived companion candidates
             return out;

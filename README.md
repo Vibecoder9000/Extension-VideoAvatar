@@ -66,3 +66,9 @@ Created by Linkpharm & Various LLMs
 ### v1.1 (2026-5-4)
 - Add Persona support
 - Improve performance significantly by reducing HTML scanning
+### v1.2 (2026-5-15)
+- Prevent unnecessary thumbnail spam
+
+## Licence
+
+ - AGPLv3, see LICENCE
